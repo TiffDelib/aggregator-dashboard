@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aggregator monthly dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Delib brand palette — from the Visual Guide */
+  --paper:#F7F5F1;
+  --panel:#FFFFFF;
+  --ink:#18233F;          /* Delib navy */
+  --slate:#474D5E;
+  --faint:#687785;
+  --line:#C6D3D8;
+  --accent:#FF5959;       /* Delib coral */
+  --accent-soft:#FFECEA;
+  --accent-deep:#C2333B;  /* coral, darkened for legible text on white */
+  --good:#469B63;         /* Delib green — positive states */
+  --good-soft:#E4F1E8;
+  --link:#00808F;         /* Delib teal, darkened for contrast */
+  --amber:#8A5C00;
+  --amber-soft:#FFF1D6;
+  --red:#B3402E;
+  --red-soft:#F9E9E5;
+  --radius:10px;
+  --display:'Lato',-apple-system,'Segoe UI',sans-serif;
+  --body:'Lato',-apple-system,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto} *{transition:none!important;animation:none!important}}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+a{color:var(--link)}
+button{font-family:var(--body)}
+
+.wrap{max-width:1180px;margin:0 auto;padding:28px 24px 80px}
+
+/* ---------- header ---------- */
+header{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px;justify-content:space-between;margin-bottom:8px}
+.masthead .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-deep);font-weight:700}
+.masthead h1{font-family:var(--display);font-weight:900;font-size:30px;line-height:1.15;margin-top:4px;letter-spacing:-.01em}
+.masthead .sub{color:var(--slate);margin-top:4px;font-size:14px}
+.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+select,.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:9px 12px;font-size:14px;cursor:pointer}
+select:focus-visible,.btn:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:700}
+.btn:hover{border-color:var(--ink)}
+.btn.primary:hover{background:#0F1730}
+
+/* ---------- status line ---------- */
+#statusline{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--slate);margin:10px 0 22px;min-height:22px}
+#statusline .dot{width:8px;height:8px;border-radius:50%;background:var(--amber);flex:none}
+#statusline.ok .dot{background:var(--good)}
+#statusline.err .dot{background:var(--red)}
+#statusline .bar{flex:1;max-width:220px;height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+#statusline .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+
+/* ---------- KPI row ---------- */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:22px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+.kpi .label{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700}
+.kpi .num{font-family:var(--display);font-size:32px;font-weight:900;margin-top:6px;line-height:1;letter-spacing:-.01em}
+.kpi .delta{font-size:13px;margin-top:6px;color:var(--slate)}
+.delta.up{color:var(--good);font-weight:700}
+.delta.down{color:var(--red);font-weight:700}
+
+/* ---------- panels ---------- */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px;margin-bottom:22px}
+.panel h2{font-family:var(--display);font-size:18px;font-weight:900;margin-bottom:4px}
+.panel .hint{font-size:13px;color:var(--faint);margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+@media(max-width:840px){.grid2{grid-template-columns:1fr}}
+
+/* ---------- chart ---------- */
+#trendchart{width:100%;height:auto;display:block}
+.bar-rect{fill:#C6D3D8}
+.bar-rect.sel{fill:var(--accent)}
+.bar-lab{font-size:10.5px;fill:var(--faint);font-family:var(--body)}
+.bar-val{font-size:11px;fill:var(--slate);font-family:var(--body);font-weight:600}
+
+/* ---------- tables ---------- */
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:8px;border-bottom:1px solid var(--paper);vertical-align:top}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:none}
+
+/* ---------- chips ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--accent-soft);color:var(--accent-deep);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:700}
+.chip small{opacity:.7;font-weight:400}
+
+/* ---------- activity list ---------- */
+.act{padding:10px 0;border-bottom:1px solid var(--paper)}
+.act:last-child{border-bottom:none}
+.act .t{font-weight:700}
+.act .t a{color:var(--ink);text-decoration:none}
+.act .t a:hover{color:var(--accent-deep);text-decoration:underline}
+.act .m{font-size:13px;color:var(--slate);margin-top:2px}
+.badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:4px;padding:2px 7px;margin-left:6px;vertical-align:1px}
+.badge.open{background:var(--good-soft);color:var(--good)}
+.badge.closed{background:#ECEFF1;color:var(--slate)}
+.badge.forthcoming{background:var(--amber-soft);color:var(--amber)}
+
+/* ---------- health ---------- */
+.health-fail{background:var(--red-soft);border-radius:8px;padding:10px 14px;font-size:14px;margin-bottom:8px}
+.health-ok{background:var(--good-soft);border-radius:8px;padding:10px 14px;font-size:14px;color:var(--good);font-weight:700}
+
+/* ---------- digest memo ---------- */
+.memo{border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:8px;background:#FDFCFA;padding:18px 20px;white-space:pre-wrap;font-size:14px;line-height:1.65;max-height:520px;overflow:auto}
+.memo-actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.copied{color:var(--good);font-weight:700;font-size:13px;align-self:center}
+
+/* ---------- error / empty ---------- */
+.errbox{background:var(--red-soft);border:1px solid #E4B7AC;border-radius:var(--radius);padding:18px 20px;margin-bottom:22px}
+.errbox b{color:var(--red)}
+.errbox code{background:#fff;padding:2px 6px;border-radius:4px;font-size:13px}
+.hidden{display:none}
+.skel{color:var(--faint);font-style:italic}
+footer{color:var(--faint);font-size:12.5px;margin-top:30px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="masthead">
+    <div class="eyebrow">Delib · Citizen Space Aggregator</div>
+    <h1>Monthly activity dashboard</h1>
+    <div class="sub">Trends across all published customer activities, for CSM &amp; product review.</div>
+  </div>
+  <div class="controls">
+    <label for="monthsel" style="font-size:13px;color:var(--slate)">Month</label>
+    <select id="monthsel" aria-label="Select month"></select>
+    <button class="btn" id="reloadbtn">Refresh data</button>
+  </div>
+</header>
+
+<div id="statusline"><span class="dot"></span><span id="statustext">Connecting to Aggregator…</span><span class="bar"><i id="statusbar"></i></span></div>
+
+<div class="errbox hidden" id="errbox"></div>
+
+<div class="kpis">
+  <div class="kpi"><div class="label">Opened this month</div><div class="num" id="k-opened">–</div><div class="delta" id="k-opened-d"></div></div>
+  <div class="kpi"><div class="label">Active organisations</div><div class="num" id="k-orgs">–</div><div class="delta" id="k-orgs-d"></div></div>
+  <div class="kpi"><div class="label">Open right now</div><div class="num" id="k-open">–</div><div class="delta" id="k-open-d"></div></div>
+  <div class="kpi"><div class="label">Total in aggregator</div><div class="num" id="k-total">–</div><div class="delta" id="k-total-d"></div></div>
+  <div class="kpi"><div class="label">Sources tracked</div><div class="num" id="k-sources">–</div><div class="delta" id="k-sources-d"></div></div>
+</div>
+
+<div class="panel">
+  <h2>Activities opened per month</h2>
+  <div class="hint">Last 13 months, by activity start date. Selected month highlighted.</div>
+  <svg id="trendchart" viewBox="0 0 1100 240" role="img" aria-label="Bar chart of activities opened per month"></svg>
+</div>
+
+<div class="grid2">
+  <div class="panel">
+    <h2>Most active organisations</h2>
+    <div class="hint" id="orgs-hint">Activities opened in the selected month, with change vs the month before.</div>
+    <table id="orgs-table"><thead><tr><th>Organisation</th><th class="num">This month</th><th class="num">Prev</th><th class="num">Δ</th></tr></thead><tbody><tr><td colspan="4" class="skel">Loading…</td></tr></tbody></table>
+  </div>
+  <div class="panel">
+    <h2>What customers are consulting on</h2>
+    <div class="hint">Most frequent words in this month's activity titles.</div>
+    <div class="chips" id="kwchips"><span class="skel">Loading…</span></div>
+    <h2 style="margin-top:22px">Source health</h2>
+    <div class="hint">From the last poll of each source.</div>
+    <div id="health"><span class="skel">Loading…</span></div>
+  </div>
+</div>
+
+<div class="grid2">
+  <div class="panel">
+    <h2>Newest activities this month</h2>
+    <div class="hint" id="new-hint"></div>
+    <div id="newlist"><span class="skel">Loading…</span></div>
+  </div>
+  <div class="panel">
+    <h2>Closing soon</h2>
+    <div class="hint">Open activities ending in the next 14 days.</div>
+    <div id="closinglist"><span class="skel">Loading…</span></div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Monthly digest</h2>
+  <div class="hint">A ready-to-send summary of the selected month. Copy it into an email to the team.</div>
+  <div class="memo" id="memo">Digest will appear here once data has loaded.</div>
+  <div class="memo-actions">
+    <button class="btn primary" id="copybtn">Copy digest</button>
+    <button class="btn" id="mailbtn">Open in email</button>
+    <span class="copied hidden" id="copiedmsg">Copied ✓</span>
+  </div>
+</div>
+
+<footer>Data: Citizen Space Aggregator API · Counts are based on activities loaded into this dashboard (up to the last ~14 months).</footer>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ================= config ================= */
+const BASE = "https://9airtebhhh.execute-api.eu-west-2.amazonaws.com/production";
+const PER_PAGE = 100;          // results per page requested
+const MAX_PAGES = 40;          // hard safety cap
+const MONTHS_BACK = 13;        // how far the trend chart looks back
+const API_KEY = "";            // optional: only needed if reads become restricted
+
+/* ================= state ================= */
+let sources = [];              // [{name,url,country_code,poll_successful}]
+let activities = [];           // normalised activities
+let counts = {total:null, open:null, closed:null, forthcoming:null};
+let selMonth = monthKey(new Date());   // "YYYY-MM"
+let loading = false;
+
+/* ================= helpers ================= */
+function monthKey(d){ return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0"); }
+function monthLabel(key){
+  const [y,m] = key.split("-").map(Number);
+  return new Date(y, m-1, 1).toLocaleDateString("en-GB",{month:"short", year:"numeric"});
+}
+function monthLabelLong(key){
+  const [y,m] = key.split("-").map(Number);
+  return new Date(y, m-1, 1).toLocaleDateString("en-GB",{month:"long", year:"numeric"});
+}
+function prevMonthKey(key){
+  const [y,m] = key.split("-").map(Number);
+  return monthKey(new Date(y, m-2, 1));
+}
+function parseDate(v){
+  if(v==null || v==="") return null;
+  if(v instanceof Date) return v;
+  // epoch timestamps, as numbers or digit strings (seconds or milliseconds)
+  if(typeof v === "number" || /^\d{9,14}(\.\d+)?$/.test(String(v).trim())){
+    const n = Number(v);
+    const d = new Date(n < 1e11 ? n*1000 : n);
+    return isNaN(d) ? null : d;
+  }
+  let d = new Date(v);
+  if(!isNaN(d)) return d;
+  // DD/MM/YYYY
+  const m = String(v).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if(m){ d = new Date(+m[3], +m[2]-1, +m[1]); if(!isNaN(d)) return d; }
+  return null;
+}
+function esc(s){ const div=document.createElement("div"); div.textContent = s==null?"":String(s); return div.innerHTML; }
+function fmt(n){ return n==null ? "–" : n.toLocaleString("en-GB"); }
+
+/* Rows may come back as objects keyed like metadata, or as positional arrays.
+   Normalise both into objects using metadata's key order. */
+/* When metadata is empty and rows are positional arrays, recover the column
+   order from the SQL in query_string (SELECT a, b, c FROM ...). */
+function splitTopLevel(s){
+  const out = []; let depth = 0, cur = "";
+  for(const ch of s){
+    if(ch === "(") depth++;
+    else if(ch === ")") depth--;
+    if(ch === "," && depth === 0){ out.push(cur); cur = ""; }
+    else cur += ch;
+  }
+  if(cur.trim()) out.push(cur);
+  return out;
+}
+function colName(expr){
+  expr = expr.trim();
+  const as = expr.match(/\bas\s+([\w"'`]+)\s*$/i);
+  if(as) return as[1].replace(/["'`]/g,"").toLowerCase();
+  // function wrappers like nullif(startdate, '') or date(x) -> inner column name
+  const fn = expr.match(/^\w+\(\s*([\w.]+)/);
+  if(fn) return fn[1].split(".").pop().toLowerCase();
+  return expr.split(".").pop().replace(/["'`]/g,"").toLowerCase();
+}
+function columnsFromQueryString(qs){
+  if(!qs) return [];
+  const m = String(qs).match(/select\s+(distinct\s+)?(.*?)\s+from\s/i);
+  if(!m) return [];
+  return splitTopLevel(m[2]).map(colName).filter(Boolean);
+}
+
+function normaliseRows(payload, fallbackCols){
+  let meta = payload && payload.metadata ? Object.keys(payload.metadata) : [];
+  const rows = (payload && Array.isArray(payload.data)) ? payload.data : [];
+  if(!meta.length){
+    const qcols = columnsFromQueryString(payload && payload.query_string);
+    meta = qcols.length ? qcols : (fallbackCols || []);
+  }
+  return rows.map(r=>{
+    if(typeof r === "string"){ try{ const j = JSON.parse(r); if(j && typeof j==="object") r = j; }catch(_){} }
+    let o;
+    if(Array.isArray(r)){
+      o = {}; meta.forEach((k,i)=>o[k]=r[i]);
+    }else if(r && typeof r==="object"){
+      o = r;
+    }else{
+      return {value:r};
+    }
+    // lowercase keys so title/Title/TITLE all resolve
+    const lc = {};
+    Object.keys(o).forEach(k=>{ lc[String(k).toLowerCase()] = o[k]; });
+    return lc;
+  });
+}
+function firstNumber(payload){
+  const d = payload && payload.data;
+  if(Array.isArray(d) && d.length){
+    const v = Array.isArray(d[0]) ? d[0][0] : (typeof d[0]==="object" ? Object.values(d[0])[0] : d[0]);
+    const n = Number(v);
+    return isNaN(n) ? null : n;
+  }
+  return null;
+}
+
+const lastRaw = {};   // path -> start of raw response text, kept for diagnostics
+
+/* Some API Gateway setups return the payload double-encoded as a JSON string,
+   or wrapped in a {statusCode, body} envelope. Unwrap until we find .data. */
+function unwrap(p){
+  for(let i=0;i<4;i++){
+    if(typeof p === "string"){ try{ p = JSON.parse(p); continue; }catch(_){ break; } }
+    if(p && typeof p==="object" && p.data === undefined && p.body !== undefined){ p = p.body; continue; }
+    break;
+  }
+  return p;
+}
+
+async function api(path, params){
+  const url = new URL(BASE + path);
+  if(params) Object.entries(params).forEach(([k,v])=>{ if(v!=null && v!=="") url.searchParams.set(k,v); });
+  const headers = {};
+  if(API_KEY) headers["x-api-key"] = API_KEY;
+  const res = await fetch(url.toString(), {headers});
+  const text = await res.text();
+  lastRaw[path] = text.slice(0, 700);
+  if(!res.ok) throw new Error("HTTP " + res.status + " on " + path);
+  let payload;
+  try{ payload = JSON.parse(text); }catch(_){ throw new Error("Response from " + path + " wasn't valid JSON."); }
+  return unwrap(payload);
+}
+
+/* ================= status UI ================= */
+const statusline = document.getElementById("statusline");
+const statustext = document.getElementById("statustext");
+const statusbar = document.getElementById("statusbar");
+function setStatus(txt, pct, mode){
+  statustext.textContent = txt;
+  statusbar.style.width = (pct==null? 0 : Math.min(100,pct)) + "%";
+  statusline.className = mode || "";
+}
+function showError(msg){
+  const box = document.getElementById("errbox");
+  box.innerHTML = "<b>Couldn't load data.</b> " + msg +
+    "<br><br>Things to check: the API endpoint is reachable from your network, and the base URL in this file (<code>BASE</code> near the top of the script) is still current. Then hit <b>Refresh data</b>.";
+  box.classList.remove("hidden");
+  setStatus("Load failed", 0, "err");
+}
+
+/* ================= data load ================= */
+async function loadAll(){
+  if(loading) return;
+  loading = true;
+  document.getElementById("errbox").classList.add("hidden");
+  activities = []; sources = [];
+  counts = {total:null, open:null, closed:null, forthcoming:null};
+  try{
+    setStatus("Fetching sources and counts…", 5);
+    const [srcP, totP, openP, closedP, forthP] = await Promise.all([
+      api("/api/sources"),
+      api("/api/activity-count"),
+      api("/api/query-count", {status:"open"}),
+      api("/api/query-count", {status:"closed"}),
+      api("/api/query-count", {status:"forthcoming"})
+    ]);
+    sources = normaliseRows(srcP, ["country_code","name","url","poll_successful"]);
+    counts.total = firstNumber(totP);
+    counts.open = firstNumber(openP);
+    counts.closed = firstNumber(closedP);
+    counts.forthcoming = firstNumber(forthP);
+    renderKpisPartial();
+
+    // page through activities until we're past the trend window
+    const cutoff = new Date(); cutoff.setMonth(cutoff.getMonth() - (MONTHS_BACK+1)); // one month of slack
+    let page = 0, done = false, sampleRow = null;
+    while(!done && page < MAX_PAGES){
+      setStatus("Loading activities… " + activities.length + " so far", 10 + (page/MAX_PAGES)*85);
+      const payload = await api("/api/query", {status:"all", sort:"most_recently_opened", per_page:PER_PAGE, page:page});
+      const rows = normaliseRows(payload, ["source","status","startdate","enddate","title","url","overview","slug","hash"]);
+      if(!rows.length){ done = true; break; }
+      if(page===0) sampleRow = {
+        metadata: payload && payload.metadata,
+        first_raw_row: payload && Array.isArray(payload.data) ? payload.data[0] : null,
+        query_string: String((payload && payload.query_string) || "").slice(0, 400),
+        first_parsed_row: rows[0]
+      };
+      let oldestOnPage = null;
+      rows.forEach(r=>{
+        const a = {
+          title: r.title || r.name || "(untitled)",
+          overview: r.overview || r.precis || "",
+          url: r.url || r.link || "",
+          source: r.source || r.source_url || r.organisation || "",
+          status: String(r.status||"").toLowerCase(),
+          start: parseDate(r.startdate ?? r.start_date ?? r.start ?? r.opendate),
+          end: parseDate(r.enddate ?? r.end_date ?? r.end ?? r.closedate)
+        };
+        activities.push(a);
+        if(a.start && (!oldestOnPage || a.start < oldestOnPage)) oldestOnPage = a.start;
+      });
+      if(rows.length < PER_PAGE) done = true;
+      if(oldestOnPage && oldestOnPage < cutoff) done = true;
+      page++;
+    }
+    if(!activities.length && !sources.length){
+      const box = document.getElementById("errbox");
+      box.innerHTML = "<b>Connected, but couldn't recognise the data.</b> The API answered OK, just not in the shape this dashboard expected. " +
+        "Copy the samples below and paste them back to Claude — that's exactly what's needed to fix the parsing.<br><br>" +
+        "<b>/api/sources returned:</b><br><code style='display:block;white-space:pre-wrap;background:#fff;padding:8px;border-radius:6px;margin:6px 0'>" + esc(lastRaw["/api/sources"] || "(nothing captured)") + "</code>" +
+        "<b>/api/query returned:</b><br><code style='display:block;white-space:pre-wrap;background:#fff;padding:8px;border-radius:6px;margin:6px 0'>" + esc(lastRaw["/api/query"] || "(nothing captured)") + "</code>";
+      box.classList.remove("hidden");
+      setStatus("Connected — data shape unrecognised", 100, "err");
+      return;
+    }
+    const parsedDates = activities.filter(a=>a.start).length;
+    if(activities.length && !parsedDates){
+      const box = document.getElementById("errbox");
+      box.innerHTML = "<b>Activities loaded, but none of their dates could be read</b> — so the monthly charts stay empty. " +
+        "Paste this sample activity back to Claude and the date format can be fixed in one edit:<br><br>" +
+        "<code style='display:block;white-space:pre-wrap;background:#fff;padding:8px;border-radius:6px;margin:6px 0'>" +
+        esc(JSON.stringify(sampleRow, null, 2)) + "</code>";
+      box.classList.remove("hidden");
+      setStatus("Loaded " + activities.length + " activities — but couldn't read their dates", 100, "err");
+      return;
+    }
+    setStatus("Loaded " + activities.length + " activities from " + sources.length + " sources.", 100, "ok");
+    renderAll();
+  }catch(e){
+    showError(esc(e.message));
+  }finally{
+    loading = false;
+  }
+}
+
+/* ================= derived data ================= */
+function sourceName(url){
+  const s = sources.find(s=>s.url===url);
+  if(s && s.name) return s.name;
+  try{ return new URL(url).hostname.replace(/^www\./,""); }catch(_){ return url || "Unknown"; }
+}
+function openedIn(key){
+  return activities.filter(a=>a.start && monthKey(a.start)===key);
+}
+function orgCounts(key){
+  const map = new Map();
+  openedIn(key).forEach(a=>map.set(a.source,(map.get(a.source)||0)+1));
+  return map;
+}
+const STOP = new Set(("a an and are as at be by for from has have in into is it its of on or our the their this to we with you your consultation consultations survey draft plan strategy proposed proposals review 2024 2025 2026 new public engagement scheme policy call have will what how").split(" "));
+function keywords(key, n){
+  const map = new Map();
+  openedIn(key).forEach(a=>{
+    String(a.title).toLowerCase().replace(/[^a-z0-9\s\-]/g," ").split(/[\s\-]+/).forEach(w=>{
+      if(w.length<4 || STOP.has(w)) return;
+      map.set(w,(map.get(w)||0)+1);
+    });
+  });
+  return [...map.entries()].filter(e=>e[1]>1).sort((a,b)=>b[1]-a[1]).slice(0,n);
+}
+function closingSoon(days){
+  const now = new Date(), lim = new Date(); lim.setDate(lim.getDate()+days);
+  return activities
+    .filter(a=>a.status==="open" && a.end && a.end>=now && a.end<=lim)
+    .sort((a,b)=>a.end-b.end);
+}
+
+/* ================= rendering ================= */
+function renderKpisPartial(){
+  document.getElementById("k-open").textContent = fmt(counts.open);
+  document.getElementById("k-open-d").textContent = counts.forthcoming!=null ? fmt(counts.forthcoming)+" forthcoming" : "";
+  document.getElementById("k-total").textContent = fmt(counts.total);
+  document.getElementById("k-total-d").textContent = counts.closed!=null ? fmt(counts.closed)+" closed to date" : "";
+  document.getElementById("k-sources").textContent = fmt(sources.length);
+  const failing = sources.filter(s=>s.poll_successful===false || s.poll_successful==="false").length;
+  const el = document.getElementById("k-sources-d");
+  el.textContent = failing ? failing + " failing to poll" : "all polling OK";
+  el.className = "delta " + (failing ? "down" : "up");
+}
+
+function renderAll(){
+  renderKpisPartial();
+  const key = selMonth, prev = prevMonthKey(key);
+  const cur = openedIn(key), before = openedIn(prev);
+
+  // KPI: opened + delta
+  document.getElementById("k-opened").textContent = fmt(cur.length);
+  const d = cur.length - before.length;
+  const dEl = document.getElementById("k-opened-d");
+  dEl.textContent = (d>=0?"+":"") + d + " vs " + monthLabel(prev);
+  dEl.className = "delta " + (d>0?"up":d<0?"down":"");
+
+  // KPI: active orgs + delta
+  const curOrgs = orgCounts(key), prevOrgs = orgCounts(prev);
+  document.getElementById("k-orgs").textContent = fmt(curOrgs.size);
+  const od = curOrgs.size - prevOrgs.size;
+  const oEl = document.getElementById("k-orgs-d");
+  oEl.textContent = (od>=0?"+":"") + od + " vs " + monthLabel(prev);
+  oEl.className = "delta " + (od>0?"up":od<0?"down":"");
+
+  renderTrend();
+  renderOrgTable(curOrgs, prevOrgs);
+  renderKeywords(key);
+  renderHealth();
+  renderNewList(cur);
+  renderClosing();
+  renderDigest();
+}
+
+function renderTrend(){
+  const svg = document.getElementById("trendchart");
+  const now = new Date();
+  const keys = [];
+  for(let i=MONTHS_BACK-1;i>=0;i--){
+    keys.push(monthKey(new Date(now.getFullYear(), now.getMonth()-i, 1)));
+  }
+  const vals = keys.map(k=>openedIn(k).length);
+  const max = Math.max(1, ...vals);
+  const W=1100,H=240,pad=10,labH=26,valH=16;
+  const bw = (W - pad*2) / keys.length;
+  let out = "";
+  keys.forEach((k,i)=>{
+    const h = Math.round((vals[i]/max) * (H - labH - valH - pad));
+    const x = pad + i*bw + bw*0.12, y = H - labH - h, w = bw*0.76;
+    const sel = k===selMonth ? " sel" : "";
+    out += `<rect class="bar-rect${sel}" x="${x}" y="${y}" width="${w}" height="${Math.max(h,2)}" rx="4"><title>${monthLabel(k)}: ${vals[i]}</title></rect>`;
+    out += `<text class="bar-val" x="${x+w/2}" y="${y-5}" text-anchor="middle">${vals[i]||""}</text>`;
+    out += `<text class="bar-lab" x="${x+w/2}" y="${H-8}" text-anchor="middle">${monthLabel(k).replace(" 20"," '")}</text>`;
+  });
+  svg.innerHTML = out;
+}
+
+function renderOrgTable(curOrgs, prevOrgs){
+  const rows = [...curOrgs.entries()]
+    .map(([src,c])=>({name:sourceName(src), cur:c, prev:prevOrgs.get(src)||0}))
+    .sort((a,b)=>b.cur-a.cur).slice(0,12);
+  const tb = document.querySelector("#orgs-table tbody");
+  if(!rows.length){ tb.innerHTML = '<tr><td colspan="4" class="skel">No activities opened in '+esc(monthLabelLong(selMonth))+'.</td></tr>'; return; }
+  tb.innerHTML = rows.map(r=>{
+    const d = r.cur - r.prev;
+    const cls = d>0?"up":d<0?"down":"";
+    return `<tr><td>${esc(r.name)}</td><td class="num">${r.cur}</td><td class="num">${r.prev}</td><td class="num"><span class="delta ${cls}">${d>0?"+":""}${d}</span></td></tr>`;
+  }).join("");
+  document.getElementById("orgs-hint").textContent =
+    "Activities opened in " + monthLabelLong(selMonth) + ", vs " + monthLabelLong(prevMonthKey(selMonth)) + ".";
+}
+
+function renderKeywords(key){
+  const kws = keywords(key, 10);
+  const el = document.getElementById("kwchips");
+  el.innerHTML = kws.length
+    ? kws.map(([w,c])=>`<span class="chip">${esc(w)} <small>×${c}</small></span>`).join("")
+    : '<span class="skel">Not enough titles this month to spot themes.</span>';
+}
+
+function renderHealth(){
+  const el = document.getElementById("health");
+  const failing = sources.filter(s=>s.poll_successful===false || s.poll_successful==="false");
+  if(!sources.length){ el.innerHTML = '<span class="skel">No sources returned.</span>'; return; }
+  el.innerHTML = failing.length
+    ? failing.map(s=>`<div class="health-fail"><b>${esc(s.name||s.url)}</b> — last poll failed. Worth checking before the next digest goes out.</div>`).join("")
+    : `<div class="health-ok">All ${sources.length} sources polled successfully. ✓</div>`;
+}
+
+function renderNewList(cur){
+  const el = document.getElementById("newlist");
+  document.getElementById("new-hint").textContent = "Opened in " + monthLabelLong(selMonth) + " · newest first.";
+  const rows = [...cur].sort((a,b)=>(b.start||0)-(a.start||0)).slice(0,10);
+  el.innerHTML = rows.length ? rows.map(a=>actRow(a)).join("") :
+    '<span class="skel">Nothing opened in this month (within the loaded window).</span>';
+}
+
+function renderClosing(){
+  const el = document.getElementById("closinglist");
+  const rows = closingSoon(14).slice(0,10);
+  el.innerHTML = rows.length ? rows.map(a=>actRow(a,true)).join("") :
+    '<span class="skel">Nothing closing in the next fortnight.</span>';
+}
+
+function actRow(a, showEnd){
+  const badge = a.status ? `<span class="badge ${esc(a.status)}">${esc(a.status)}</span>` : "";
+  const when = showEnd
+    ? (a.end ? "Closes " + a.end.toLocaleDateString("en-GB",{day:"numeric",month:"short"}) : "")
+    : (a.start ? "Opened " + a.start.toLocaleDateString("en-GB",{day:"numeric",month:"short"}) : "");
+  const link = a.url ? `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a>` : esc(a.title);
+  return `<div class="act"><div class="t">${link}${badge}</div><div class="m">${esc(sourceName(a.source))}${when ? " · " + when : ""}</div></div>`;
+}
+
+/* ================= digest ================= */
+function buildDigest(){
+  const key = selMonth, prev = prevMonthKey(key);
+  const cur = openedIn(key), before = openedIn(prev);
+  const curOrgs = orgCounts(key), prevOrgs = orgCounts(prev);
+  const d = cur.length - before.length;
+  const pct = before.length ? Math.round((d/before.length)*100) : null;
+  const topOrgs = [...curOrgs.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3)
+    .map(([s,c])=>sourceName(s)+" ("+c+")");
+  const newOrgs = [...curOrgs.keys()].filter(s=>!prevOrgs.has(s)).map(sourceName);
+  const kws = keywords(key,5).map(([w])=>w);
+  const soon = closingSoon(14);
+  const failing = sources.filter(s=>s.poll_successful===false || s.poll_successful==="false");
+  const notable = [...cur].sort((a,b)=>(b.start||0)-(a.start||0)).slice(0,5);
+
+  const L = [];
+  L.push("CITIZEN SPACE AGGREGATOR — MONTHLY DIGEST");
+  L.push(monthLabelLong(key));
+  L.push("");
+  L.push("Headline: " + cur.length + " activities opened across " + curOrgs.size + " organisations" +
+    (before.length ? " (" + (d>=0?"+":"") + d + (pct!=null ? ", " + (pct>=0?"+":"") + pct + "%" : "") + " vs " + monthLabelLong(prev) + ")." : "."));
+  if(counts.open!=null) L.push("Currently open across the aggregator: " + counts.open + " activities" + (counts.forthcoming ? " ("+counts.forthcoming+" forthcoming)" : "") + ".");
+  L.push("");
+  if(topOrgs.length){ L.push("Most active: " + topOrgs.join(", ") + "."); }
+  if(newOrgs.length){ L.push("Newly active this month (quiet last month): " + newOrgs.slice(0,5).join(", ") + (newOrgs.length>5 ? " and " + (newOrgs.length-5) + " more" : "") + "."); }
+  if(kws.length){ L.push("Recurring themes in titles: " + kws.join(", ") + "."); }
+  L.push("");
+  if(notable.length){
+    L.push("A few of the newest activities:");
+    notable.forEach(a=>L.push("  • " + a.title + " — " + sourceName(a.source) + (a.url ? " (" + a.url + ")" : "")));
+    L.push("");
+  }
+  L.push(soon.length
+    ? soon.length + " open activities close in the next 14 days."
+    : "Nothing currently closing in the next 14 days.");
+  if(failing.length){
+    L.push("");
+    L.push("⚠ Source health: " + failing.length + " source" + (failing.length>1?"s":"") + " failed their last poll (" +
+      failing.slice(0,4).map(s=>s.name||s.url).join(", ") + (failing.length>4?", …":"") + "). Figures above may undercount them.");
+  }
+  L.push("");
+  L.push("Generated " + new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}) + " from the Aggregator dashboard.");
+  return L.join("\n");
+}
+
+function renderDigest(){
+  document.getElementById("memo").textContent = buildDigest();
+}
+
+/* ================= wiring ================= */
+function buildMonthSelect(){
+  const sel = document.getElementById("monthsel");
+  const now = new Date();
+  sel.innerHTML = "";
+  for(let i=0;i<MONTHS_BACK;i++){
+    const k = monthKey(new Date(now.getFullYear(), now.getMonth()-i, 1));
+    const o = document.createElement("option");
+    o.value = k; o.textContent = monthLabelLong(k);
+    sel.appendChild(o);
+  }
+  sel.value = selMonth;
+  sel.addEventListener("change", ()=>{ selMonth = sel.value; if(activities.length) renderAll(); });
+}
+
+document.getElementById("reloadbtn").addEventListener("click", loadAll);
+
+document.getElementById("copybtn").addEventListener("click", async ()=>{
+  try{
+    await navigator.clipboard.writeText(buildDigest());
+  }catch(_){
+    const ta=document.createElement("textarea"); ta.value=buildDigest();
+    document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove();
+  }
+  const m = document.getElementById("copiedmsg");
+  m.classList.remove("hidden");
+  setTimeout(()=>m.classList.add("hidden"), 2000);
+});
+
+document.getElementById("mailbtn").addEventListener("click", ()=>{
+  const subject = "Aggregator monthly digest — " + monthLabelLong(selMonth);
+  const body = buildDigest();
+  window.location.href = "mailto:?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body.slice(0,1800));
+});
+
+buildMonthSelect();
+loadAll();
+})();
+</script>
+</body>
+</html>
